@@ -1,57 +1,42 @@
 import { useState, useEffect, useCallback } from 'react';
 
-// custom hook to fetch data easily
-export function useFetch(link) {
+// Custom hook to fetch data from any API URL
+export function useFetch(url) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // function to get the data
-  const loadData = useCallback(async (signal) => {
-    if (!link) return;
-    
+  // useCallback is used to keep the function reference stable
+  const fetchData = useCallback(async () => {
+    if (!url) return;
+
     setLoading(true);
     setError(null);
 
     try {
-      const res = await fetch(link, { signal });
+      const response = await fetch(url);
       
-      // check if request was successful
-      if (!res.ok) {
-        throw new Error(`Server status: ${res.status}`);
+      // if response status is not ok (e.g. 404 or 500)
+      if (!response.ok) {
+        throw new Error("Failed to fetch data from server");
       }
-
-      const json = await res.json();
-      setData(json);
+      
+      const result = await response.json();
+      setData(result);
     } catch (err) {
-      if (err.name !== 'AbortError') {
-        setError(err.message || 'Something went wrong');
-      }
+      setError(err.message || "An error occurred");
     } finally {
-      if (!signal || !signal.aborted) {
-        setLoading(false);
-      }
+      setLoading(false);
     }
-  }, [link]);
+  }, [url]);
 
-  // fetch data when link changes
+  // useEffect triggers the fetch whenever the url changes
   useEffect(() => {
-    const controller = new AbortController();
-    loadData(controller.signal);
+    fetchData();
+  }, [url, fetchData]);
 
-    // cleanup on unmount
-    return () => {
-      controller.abort();
-    };
-  }, [link, loadData]);
-
-  // allow manual refresh
-  const refresh = () => {
-    const controller = new AbortController();
-    loadData(controller.signal);
-  };
-
-  return { data, loading, error, refetch: refresh };
+  // return the values required by the assignment, plus refetch for retry buttons
+  return { data, loading, error, refetch: fetchData };
 }
 
 export default useFetch;
